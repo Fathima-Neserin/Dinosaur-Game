@@ -22,10 +22,9 @@ exports.newScore = async (req, res) => {
   try {
     const newScore = await Scores.create({ player_name, score, session_id });
 
-    // 1. Fetch and broadcast the updated leaderboard
     const leaderboard = await getLeaderboard();
-    io.emit("leaderboard:update", leaderboard); // Broadcast to all connected clients
-    io.emit("score:new", { player_name, score }); // Broadcast new score notification
+    io.emit("leaderboard:update", leaderboard);
+    io.emit("score:new", { player_name, score });
 
     res.status(201).json(newScore);
   } catch (error) {

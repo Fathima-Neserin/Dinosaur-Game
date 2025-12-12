@@ -19,68 +19,60 @@ const GAME_TICK_RATE = 60;
 
 // --- Game Logic Timer ---
 setInterval(() => {
-    // 1. Authoritative Server Physics
-    updateGameState(gameState.players);
-    
-    // 2. Broadcast the player count (simple health check)
-    io.emit("players:count", gameState.players.size);
+  updateGameState(gameState.players);
 
-    // FUTURE: Broadcast ghost player updates here (throttled)
+  io.emit("players:count", gameState.players.size);
 }, 1000 / GAME_TICK_RATE);
 
-// --- Socket.IO Real-Time Handlers ---
 io.on("connection", (socket) => {
-    console.log("Player connected:", socket.id);
-    
-    // 1. PLAYER JOIN GAME
-    socket.on("player:join", ({ playerName }) => {
-        if (!playerName) return;
+  console.log("Player connected:", socket.id);
 
-        // Store session details in the authoritative state
-        gameState.players.set(socket.id, {
-            playerName,
-            score: 0,
-            isJumping: false,
-            lastUpdateTime: Date.now(),
-        });
+  // PLAYER JOIN GAME
+  socket.on("player:join", ({ playerName }) => {
+    if (!playerName) return;
 
-        console.log(`Player ${playerName} joined the game.`);
-        
-        // Broadcast that a new player joined and the updated player count
-        io.emit("player:join", { socketId: socket.id, playerName });
+    gameState.players.set(socket.id, {
+      playerName,
+      score: 0,
+      isJumping: false,
+      lastUpdateTime: Date.now(),
     });
 
-    // 2. PLAYER UPDATE (Client sends current score/state)
-    socket.on("player:update", ({ score, isJumping }) => {
-        if (gameState.players.has(socket.id)) {
-            const player = gameState.players.get(socket.id);
-            
-            // Update the authoritative state
-            player.score = score;
-            player.isJumping = isJumping;
-            player.lastUpdateTime = Date.now();
-            
-            // Broadcast throttled update to everyone else for "ghosting"
-            socket.broadcast.emit("player:update", {
-                socketId: socket.id,
-                score: score,
-                isJumping: isJumping,
-            });
-        }
-    });
+    console.log(`Player ${playerName} joined the game.`);
 
-    // 3. PLAYER DISCONNECT / LEAVE
-    socket.on("disconnect", () => {
-        if (gameState.players.has(socket.id)) {
-            const player = gameState.players.get(socket.id);
-            console.log(`Player ${player.playerName} disconnected.`);
-            
-            gameState.players.delete(socket.id);
+    io.emit("player:join", { socketId: socket.id, playerName });
+  });
 
-            // Broadcast player leaving
-            io.emit("player:leave", socket.id);
-        }
-    });
+  socket.on("player:update", ({ score, isJumping }) => {
+    if (gameState.players.has(socket.id)) {
+      const player = gameState.players.get(socket.id);
+
+      // Update the authoritative state
+      player.score = score;
+      player.isJumping = isJumping;
+      player.lastUpdateTime = Date.now();
+
+      // Broadcast throttled update to everyone else for "ghosting"
+      socket.broadcast.emit("player:update", {
+        socketId: socket.id,
+        score: score,
+        isJumping: isJumping,
+      });
+    }
+  });
+
+  // PLAYER DISCONNECT / LEAVE
+  socket.on("disconnect", () => {
+    if (gameState.players.has(socket.id)) {
+      const player = gameState.players.get(socket.id);
+      console.log(`Player ${player.playerName} disconnected.`);
+
+      gameState.players.delete(socket.id);
+
+      //  player leaving
+      io.emit("player:leave", socket.id);
+    }
+  });
 });
 
 // Routes

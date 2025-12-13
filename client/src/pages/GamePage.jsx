@@ -37,7 +37,7 @@ const GamePage = () => {
       setGameOverData({ playerName, score, sessionId });
 
       axios
-        .post("/api/score/scores", {
+        .post("http://localhost:5000/api/score/scores", {
           player_name: playerName,
           score: Math.floor(score),
           session_id: sessionId,

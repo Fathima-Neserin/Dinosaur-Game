@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
 
-const SERVER_URL = "http://localhost:5000";
-const LEADERBOARD_URL = `${SERVER_URL}/api/score/leaderboard`;
+// const SERVER_URL = "http://localhost:5000";
+const LEADERBOARD_URL = `/api/score/leaderboard`;
 
 const useSocket = (playerName) => {
   const [isConnected, setIsConnected] = useState(false);

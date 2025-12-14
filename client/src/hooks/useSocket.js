@@ -10,6 +10,10 @@ const useSocket = (playerName) => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [playerCount, setPlayerCount] = useState(1);
   const [ghostPlayers, setGhostPlayers] = useState(new Map());
+
+  const [socketId, setSocketId] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [sharedObstacles, setSharedObstacles] = useState([]);
   const socketRef = useRef(null);
 
   const fetchLeaderboard = useCallback(async () => {
@@ -36,6 +40,7 @@ const useSocket = (playerName) => {
 
     socket.on("connect", () => {
       setIsConnected(true);
+      setSocketId(socket.id);
       fetchLeaderboard();
     });
 
@@ -44,6 +49,28 @@ const useSocket = (playerName) => {
     });
 
     socket.on("player:count", setPlayerCount);
+
+    // listener for authoritative obstacle (obstacle from server side)
+    socket.on("game:obstacle:spawn", (newObstacle) => {
+      setSharedObstacles((prev) => [...prev, newObstacle]);
+    });
+
+    // listener for chat history
+    socket.on("chat:history", (history) => {
+      setChatMessages(history);
+    });
+
+    // listener for new messages
+    socket.on("chat:message", (newMessage) => {
+      setChatMessages((prev) => [...prev, newMessage]);
+    });
+
+    // listener for chat reaction
+    socket.on("chat:react", ({ messageId, reactions }) => {
+      setChatMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, reactions } : m))
+      );
+    });
     socket.on("leaderboard:update", (data) => {
       if (Array.isArray(data)) {
         setLeaderboard(data);
@@ -89,6 +116,22 @@ const useSocket = (playerName) => {
     }
   }, []);
 
+  // chat emittors
+  const sendMessage = useCallback(
+    (text) => {
+      if (socketRef.current && socketRef.current.connected) {
+        socketRef.current.emit("chat:message", { text, playerName });
+      }
+    },
+    [playerName]
+  );
+
+  const sendReaction = useCallback(({ messageId, emoji }) => {
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit("chat:react", { messageId, emoji });
+    }
+  }, []);
+
   return {
     isConnected,
     leaderboard,
@@ -96,6 +139,11 @@ const useSocket = (playerName) => {
     ghostPlayers,
     joinGame,
     updatePlayerState,
+    socketId,
+    chatMessages,
+    sharedObstacles,
+    sendMessage,
+    sendReaction,
   };
 };
 

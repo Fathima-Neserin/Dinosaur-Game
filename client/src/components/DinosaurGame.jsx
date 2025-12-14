@@ -10,11 +10,14 @@ const DINO_HEIGHT = 80;
 const DINO_X_POSITION = 40;
 const OBSTACLE_WIDTH = 20;
 const OBSTACLE_HEIGHT = 40;
-const OBSTACLE_SPAWN_INTERVAL = 1500;
+
+// PHYSICS & GAMEPLAY
 const INITIAL_GROUND_SPEED = 6;
 const GRAVITY = 1.0;
 const DINO_JUMP_VELOCITY = 18;
 const SPEED_INCREMENT = 0.2;
+
+// NETWORK SYNCHRONIZATION
 const THROTTLE_RATE = 100;
 
 // Generates a new session ID
@@ -29,14 +32,20 @@ const createInitialGameState = () => ({
   isGameOver: false,
   score: 0,
   groundSpeed: INITIAL_GROUND_SPEED,
-  obstacles: [],
-  lastObstacleTime: Date.now(),
   sessionId: generateSessionId(),
 });
 
-const DinosaurGame = ({ onGameOver, updatePlayerState, ghostPlayers }) => {
+const DinosaurGame = ({
+  onGameOver,
+  updatePlayerState,
+  ghostPlayers,
+  sharedObstacles,
+}) => {
   const [gameState, setGameState] = useState(createInitialGameState);
+  const [localObstacles, setLocalObstacles] = useState([]);
+
   const gameStateRef = useRef(gameState);
+  const localObstaclesRef = useRef(localObstacles);
 
   const animationRef = useRef(null);
   const lastTimeRef = useRef(0);
@@ -45,6 +54,26 @@ const DinosaurGame = ({ onGameOver, updatePlayerState, ghostPlayers }) => {
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  useEffect(() => {
+    localObstaclesRef.current = localObstacles;
+  }, [localObstacles]);
+
+  // Add new obstacles when server sends them
+  useEffect(() => {
+    if (sharedObstacles && sharedObstacles.length > 0) {
+      const latestObstacle = sharedObstacles[sharedObstacles.length - 1];
+
+      setLocalObstacles((prev) => {
+        // Check if this obstacle already exists
+        if (prev.find((obs) => obs.id === latestObstacle.id)) {
+          return prev;
+        }
+        // Add the new obstacle
+        return [...prev, latestObstacle];
+      });
+    }
+  }, [sharedObstacles]);
 
   // Throttled socket state sync
   const throttledUpdate = useCallback(
@@ -75,6 +104,7 @@ const DinosaurGame = ({ onGameOver, updatePlayerState, ghostPlayers }) => {
   const gameLoop = useCallback(
     (time) => {
       const prev = gameStateRef.current;
+      const currentObstacles = localObstaclesRef.current;
       const delta = time - lastTimeRef.current;
 
       if (!delta) {
@@ -87,9 +117,8 @@ const DinosaurGame = ({ onGameOver, updatePlayerState, ghostPlayers }) => {
 
       let newState = { ...prev };
 
-      // Score
+      // Score and Speed Logic
       newState.score += delta * 0.01;
-
       if (
         Math.floor(newState.score) % 100 === 0 &&
         newState.score > 50 &&
@@ -110,34 +139,16 @@ const DinosaurGame = ({ onGameOver, updatePlayerState, ghostPlayers }) => {
         }
       }
 
-      // --- Spawn new obstacles ---
-      if (
-        newState.obstacles.length === 0 ||
-        time - newState.lastObstacleTime > OBSTACLE_SPAWN_INTERVAL
-      ) {
-        const newObs = {
-          id: Date.now(),
-          x: GAME_WIDTH,
-          width: Math.max(OBSTACLE_WIDTH, 24),
-          height: Math.max(OBSTACLE_HEIGHT, 56),
-        };
-        newState.obstacles.push(newObs);
-        newState.lastObstacleTime = time;
-
-        console.log(
-          "Spawned obstacle at x=",
-          newObs.x,
-          "height=",
-          newObs.height
-        );
-      }
-
-      newState.obstacles = newState.obstacles
+      // Move obstacles and filter off-screen ones
+      const updatedObstacles = currentObstacles
         .map((obs) => ({
           ...obs,
-          x: obs.x - newState.groundSpeed, // pixels per frame
+          x: obs.x - newState.groundSpeed,
         }))
         .filter((obs) => obs.x > -Math.max(OBSTACLE_WIDTH, 24) - 50);
+
+      // Update local obstacles state
+      setLocalObstacles(updatedObstacles);
 
       // Collision detection
       const playerBox = {
@@ -147,12 +158,12 @@ const DinosaurGame = ({ onGameOver, updatePlayerState, ghostPlayers }) => {
         top: newState.dinoY + DINO_HEIGHT,
       };
 
-      const hit = newState.obstacles.some((obs) => {
+      const hit = updatedObstacles.some((obs) => {
         const box = {
           left: obs.x,
-          right: obs.x + obs.width,
+          right: obs.x + (obs.width || OBSTACLE_WIDTH),
           bottom: DINO_Y_START,
-          top: DINO_Y_START + obs.height,
+          top: DINO_Y_START + (obs.height || OBSTACLE_HEIGHT),
         };
 
         return (
@@ -205,9 +216,9 @@ const DinosaurGame = ({ onGameOver, updatePlayerState, ghostPlayers }) => {
     <div
       onClick={handleJump}
       className={`
-    relative bg-gray-100 border-b-4 border-gray-600
-    ${gameState.isGameOver ? "opacity-50" : "cursor-pointer"}
-  `}
+        relative bg-gray-100 border-b-4 border-gray-600
+        ${gameState.isGameOver ? "opacity-50" : "cursor-pointer"}
+      `}
       style={{
         width: GAME_WIDTH + "px",
         height: GAME_HEIGHT + "px",
@@ -220,22 +231,22 @@ const DinosaurGame = ({ onGameOver, updatePlayerState, ghostPlayers }) => {
         Timer: {Math.floor(gameState.score)}
       </div>
 
-      {/* Obstacles - RENDER FIRST so they appear behind dino */}
-      {gameState.obstacles.map((obs) => (
+      {/* Render obstacles from localObstacles */}
+      {localObstacles.map((obs) => (
         <div
           key={obs.id}
           className="absolute bg-red-600 border-2 border-red-800"
           style={{
             left: obs.x + "px",
             bottom: DINO_Y_START + "px",
-            width: obs.width + "px",
-            height: obs.height + "px",
+            width: (obs.width || OBSTACLE_WIDTH) + "px",
+            height: (obs.height || OBSTACLE_HEIGHT) + "px",
             zIndex: 1,
           }}
         />
       ))}
 
-      {/* Dino (Facing Right) */}
+      {/* Your Dino - Green with glow effect */}
       <div
         className="absolute flex items-center justify-center"
         style={{
@@ -246,24 +257,39 @@ const DinosaurGame = ({ onGameOver, updatePlayerState, ghostPlayers }) => {
           zIndex: 10,
         }}
       >
-        <span
-          className="absolute flex items-center justify-center"
-          style={{
-            fontSize: "70px",
-            transform: "scaleX(-1)",
-            lineHeight: 1,
-            display: "inline-block",
-          }}
-        >
-          🦖
-        </span>
+        <div className="relative">
+          {/* Glow effect */}
+          <div
+            className="absolute inset-0 bg-green-400 rounded-full blur-xl opacity-40"
+            style={{
+              width: "90px",
+              height: "90px",
+              left: "-5px",
+              top: "-5px",
+            }}
+          />
+          {/* Main dino */}
+          <span
+            className="relative"
+            style={{
+              fontSize: "70px",
+              transform: "scaleX(-1)",
+              lineHeight: 1,
+              display: "inline-block",
+              filter:
+                "drop-shadow(0 0 8px #4ade80) drop-shadow(0 4px 6px rgba(0,0,0,0.3))",
+            }}
+          >
+            🦖
+          </span>
+        </div>
       </div>
 
-      {/* Ghost Players */}
+      {/* Ghost Players - Cyan transparent with hologram effect */}
       {[...ghostPlayers.entries()].map(([id, ghost]) => (
         <div
           key={id}
-          className="absolute bg-gray-400 opacity-50 rounded-full"
+          className="absolute"
           style={{
             left: DINO_X_POSITION,
             bottom: ghost.isJumping ? DINO_Y_START + 80 : DINO_Y_START,
@@ -273,9 +299,44 @@ const DinosaurGame = ({ onGameOver, updatePlayerState, ghostPlayers }) => {
             zIndex: 5,
           }}
         >
-          <span className="text-2xl absolute inset-0 flex items-center justify-center">
-            👤
-          </span>
+          <div className="relative w-full h-full">
+            {/* Outer glow */}
+            <div
+              className="absolute inset-0 bg-cyan-400 rounded-lg blur-lg opacity-30 animate-pulse"
+              style={{
+                width: "85px",
+                height: "85px",
+                left: "-2px",
+                top: "-2px",
+              }}
+            />
+            {/* Border effect */}
+            <div className="absolute inset-0 border-2 border-cyan-400/60 rounded-lg" />
+            {/* Background */}
+            <div className="absolute inset-0 bg-cyan-500/15 rounded-lg backdrop-blur-sm" />
+            {/* Ghost dino */}
+            <span
+              className="absolute inset-0 flex items-center justify-center"
+              style={{
+                fontSize: "60px",
+                transform: "scaleX(-1)",
+                lineHeight: 1,
+                filter: "drop-shadow(0 0 12px cyan)",
+                opacity: 0.75,
+              }}
+            >
+              🦖
+            </span>
+            {/* Scanline effect for hologram look */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background:
+                  "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(6, 182, 212, 0.1) 2px, rgba(6, 182, 212, 0.1) 4px)",
+                borderRadius: "0.5rem",
+              }}
+            />
+          </div>
         </div>
       ))}
 

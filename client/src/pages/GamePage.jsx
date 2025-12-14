@@ -4,6 +4,7 @@ import GameOverModal from "../components/GameOverModal";
 import StartGameModal from "../components/StatGameModal";
 import DinosaurGame from "../components/DinosaurGame";
 import axios from "axios";
+import ChatWindow from "../components/ChatWindow";
 
 const generateSessionId = () =>
   `session-${Date.now().toString(36) + Math.random().toString(36).substr(2)}`;
@@ -20,6 +21,11 @@ const GamePage = () => {
     ghostPlayers,
     joinGame,
     updatePlayerState,
+    socketId,
+    chatMessages,
+    sendMessage,
+    sendReaction,
+    sharedObstacles,
   } = useSocket(playerName);
 
   console.log("Leaderboard", leaderboard);
@@ -59,7 +65,7 @@ const GamePage = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex p-8">
-      <div className="flex-1 flex flex-col items-center">
+      <div className="flex-1 flex flex-col items-center p-4">
         <h1 className="text-4xl font-extrabold text-yellow-500 mb-6">
           Dino Runner Multiplayer
         </h1>
@@ -78,6 +84,7 @@ const GamePage = () => {
               updatePlayerState={updatePlayerState}
               onGameOver={handleGameOver}
               ghostPlayers={ghostPlayers}
+              sharedObstacles={sharedObstacles}
             />
 
             <button
@@ -85,7 +92,7 @@ const GamePage = () => {
                 setIsGameActive(false);
                 setGameOverData(null);
               }}
-              className="mt-40 px-6 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-all duration-200 text-2xl"
+              className="mt-4 px-6 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-all duration-200 text-2xl"
             >
               Quit Game
             </button>
@@ -109,8 +116,9 @@ const GamePage = () => {
         )}
       </div>
 
-      <div className="w-full max-w-sm md:max-w-md lg:max-w-lg mx-auto ml-[150px]">
-        <div className="bg-black/30 backdrop-blur-xl rounded-3xl shadow-2xl border border-cyan-400/30 overflow-hidden">
+      <div className="w-full md:w-96 flex flex-col bg-gray-800 border-t md:border-t-0 md:border-l border-gray-700 shadow-2xl rounded-lg mt-8 md:mt-0">
+        <div className="h-[450px] p-4 overflow-y-auto bg-black/30 backdrop-blur-xl rounded-t-lg">
+          {" "}
           <div className="bg-gradient-to-r from-gray-700 to-gray-800 p-6 border-b border-cyan-400/50">
             <div className="flex items-center justify-center gap-3 mb-2">
               <span className="text-4xl text-cyan-400">🏆</span>
@@ -122,7 +130,6 @@ const GamePage = () => {
               {playerCount} Players Online
             </p>
           </div>
-
           <div className="p-6">
             <ol className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar">
               <li className="flex justify-between text-xs font-semibold uppercase text-cyan-400 pb-2 border-b border-gray-700">
@@ -197,6 +204,15 @@ const GamePage = () => {
               )}
             </ol>
           </div>
+        </div>
+        <div className="flex-grow p-4 border-t border-gray-700 overflow-hidden flex flex-col bg-gray-900 rounded-b-lg">
+          <ChatWindow
+            messages={chatMessages}
+            onSend={sendMessage}
+            onReact={sendReaction}
+            currentSocketId={socketId}
+            playerName={playerName}
+          />
         </div>
       </div>
     </div>

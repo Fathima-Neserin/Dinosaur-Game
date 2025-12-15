@@ -6,6 +6,8 @@ import DinosaurGame from "../components/DinosaurGame";
 import axios from "axios";
 import ChatWindow from "../components/ChatWindow";
 
+const API_SERVER_URL = "https://dinosaur-game-2.onrender.com";
+
 const generateSessionId = () =>
   `session-${Date.now().toString(36) + Math.random().toString(36).substr(2)}`;
 
@@ -43,7 +45,7 @@ const GamePage = () => {
       setGameOverData({ playerName, score, sessionId });
 
       axios
-        .post("http://localhost:5000/api/score/scores", {
+        .post(`${API_SERVER_URL}/api/score/scores`, {
           player_name: playerName,
           score: Math.floor(score),
           session_id: sessionId,

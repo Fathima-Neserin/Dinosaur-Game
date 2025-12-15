@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
 
-const SERVER_URL = "http://localhost:5000";
+const SERVER_URL = "https://dinosaur-game-2.onrender.com";
 const LEADERBOARD_URL = `${SERVER_URL}/api/score/leaderboard`;
 
 const useSocket = (playerName) => {

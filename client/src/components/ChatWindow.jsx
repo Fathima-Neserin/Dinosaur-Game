@@ -2,199 +2,157 @@ import React, { useState, useRef, useEffect } from "react";
 import { MdSend } from "react-icons/md";
 
 const ChatWindow = ({
-  messages,
-  onSend,
-  onReact,
-  currentSocketId,
-  playerName,
+  messages,
+  onSend,
+  onReact,
+  currentSocketId,
+  playerName,
 }) => {
-  const [input, setInput] = useState("");
-  // 📌 NEW STATE: Tracks which message reaction menu is currently open/active
-  const [activeReactionId, setActiveReactionId] = useState(null); 
-  const chatEndRef = useRef(null);
-    
-  const acceptedEmojis = [
-    '👍', 
-    '👎', 
-    '😂', 
-    '🔥', 
-    '🎉', 
-    '❤️', 
-    '🤯', 
-    '😴', 
-    '💯', 
-  ];
+  const [input, setInput] = useState("");
+  const [activeReactionId, setActiveReactionId] = useState(null);
+  const chatEndRef = useRef(null);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  const acceptedEmojis = ["👍", "👎", "😂", "🔥", "🎉", "❤️", "🤯", "😴", "💯"];
 
-  const handleSend = (e) => {
-    e.preventDefault();
-    if (input.trim()) {
-      onSend(input);
-      setInput("");
-    }
-  };
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-  const handleReact = (messageId, emoji) => {
-    onReact(messageId, emoji);
-    // Optionally close the reaction panel after reacting:
-    setActiveReactionId(null); 
-  };
+  const handleSend = (e) => {
+    e.preventDefault();
+    if (input.trim()) {
+      onSend(input);
+      setInput("");
+    }
+  };
 
-  // 📌 NEW FUNCTION: Toggles the reaction menu when the message container is clicked
-  const handleMessageClick = (messageId) => {
-    setActiveReactionId(prevId => (prevId === messageId ? null : messageId));
-  };
+  const handleReact = (messageId, emoji) => {
+    onReact(messageId, emoji);
+    setActiveReactionId(null);
+  };
 
-  const getReactionCount = (reactions, emoji) => {
-    return reactions[emoji] ? reactions[emoji].length : 0;
-  };
+  const handleMessageClick = (messageId) => {
+    if (playerName) {
+      setActiveReactionId((prevId) =>
+        prevId === messageId ? null : messageId
+      );
+    }
+  };
 
-  const hasUserReacted = (reactions, emoji) => {
-    return reactions[emoji] && reactions[emoji].includes(currentSocketId);
-  };
+  const getSenderColor = (senderId) => {
+    let hash = 0;
+    for (let i = 0; i < senderId.length; i++) {
+      hash = senderId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const color = (hash & 0x00ffffff).toString(16).toUpperCase();
+    const hex = "00000".substring(0, 6 - color.length) + color;
+    return `#${hex.slice(0, 2)}80${hex.slice(4)}`;
+  };
 
-  // Check if the current message's reaction menu should be open
-  const isReactionMenuOpen = (messageId) => activeReactionId === messageId;
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-grow overflow-y-auto space-y-4 p-2 bg-gray-900/50 rounded-lg mb-3">
+        {messages.map((msg) => {
+          const isSender = msg.senderId === currentSocketId;
+          return (
+            <div
+              key={msg.id}
+              className={`relative max-w-[90%] flex flex-col ${
+                isSender ? "ml-auto items-end" : "mr-auto items-start"
+              }`}
+            >
+              <div
+                className={`p-3 rounded-xl shadow-md transition-shadow duration-200 cursor-pointer ${
+                  isSender
+                    ? "bg-blue-600/90 rounded-br-none"
+                    : "bg-gray-700/90 rounded-tl-none"
+                } hover:shadow-lg`}
+                onClick={() => handleMessageClick(msg.id)}
+                title={new Date(msg.timeStamp).toLocaleTimeString()}
+              >
+                <p
+                  className={`text-xs font-bold mb-1 ${
+                    isSender ? "text-right" : "text-left"
+                  }`}
+                  style={{ color: getSenderColor(msg.senderId) }}
+                >
+                  {msg.playerName}
+                </p>
 
-  return (
-    <div className="flex flex-col h-full">
-      <h3 className="text-xl font-bold text-cyan-400 mb-2 pb-2 border-b border-gray-700">
-        Discourse Chat
-      </h3>
+                <p className="text-sm break-words text-white">{msg.message}</p>
+              </div>
 
-      {/* Message Log */}
-      <div className="flex-grow overflow-y-auto mb-3 space-y-3 p-3 custom-scrollbar">
-        {messages.map((msg) => {
-          const isOwnMessage = msg.senderId === currentSocketId;
-          const senderName = msg.playerName || "Ghost Runner";
-          const messageText = msg.text || msg.message || msg.content || "";
-          const reactionsExist =
-            msg.reactions &&
-            acceptedEmojis.some(
-              (emoji) => getReactionCount(msg.reactions, emoji) > 0
-            );
+              <div className="mt-1 flex space-x-1">
+                {Object.entries(msg.reactions).map(([emoji, userIds]) => {
+                  if (userIds.length === 0) return null;
+                  const isUserReaction = userIds.includes(currentSocketId);
+                  return (
+                    <span
+                      key={emoji}
+                      className={`text-xs px-2 py-[2px] rounded-full flex items-center transition-all duration-300 ${
+                        isUserReaction
+                          ? "bg-cyan-500 text-gray-900 font-bold border border-white"
+                          : "bg-gray-600/70 text-white border border-gray-700"
+                      }`}
+                    >
+                      {emoji} {userIds.length}
+                    </span>
+                  );
+                })}
+              </div>
 
-          return (
-            <div
-              key={msg.id}
-              className={`flex flex-col ${
-                isOwnMessage ? "items-end" : "items-start" // Alignment
-              }`}
-            >
-              {/* Message Bubble Container - Holds message and reactions */}
-              <div className="max-w-[80%] relative">
-                
-                {/* MESSAGE BUBBLE: Clickable area to toggle reactions */}
-                <div
-                  className={`relative p-3 text-sm leading-relaxed break-words shadow-lg rounded-2xl cursor-pointer ${
-                    isOwnMessage
-                      ? "bg-cyan-600 text-white rounded-br-md" 
-                      : "bg-white text-gray-900 rounded-bl-md" 
-                  }`}
-                  // 📌 ON CLICK: Toggle reaction menu
-                  onClick={() => handleMessageClick(msg.id)}
-                >
-                  {/* Bubble Tail (Visual flair) */}
-                  <span
-                    className={`absolute bottom-2 w-3 h-3 rotate-45 ${
-                      isOwnMessage
-                        ? "right-[-6px] bg-cyan-600"
-                        : "left-[-6px] bg-white"
-                    }`}
-                  />
+              {activeReactionId === msg.id && (
+                <div
+                  className={`absolute z-10 p-2 bg-gray-800 border border-blue-500/50 rounded-lg shadow-xl flex space-x-1 bottom-full mb-1 ${
+                    isSender ? "right-0" : "left-0"
+                  }`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {acceptedEmojis.map((emoji) => (
+                    <button
+                      key={emoji}
+                      className={`text-xl p-1 rounded-full hover:bg-gray-700 transition-all duration-200 ${
+                        msg.reactions[emoji]?.includes(currentSocketId)
+                          ? "ring-2 ring-yellow-400"
+                          : ""
+                      }`}
+                      onClick={() => handleReact(msg.id, emoji)}
+                      disabled={!playerName}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        <div ref={chatEndRef} />
+      </div>
 
-                  {/* Sender Name (CAPITALS, Bold) */}
-                  <p
-                    className={`text-xs font-extrabold mb-1 uppercase ${
-                      isOwnMessage ? "text-white" : "text-purple-600" 
-                    }`}
-                  >
-                    {senderName}
-                  </p>
+      <form onSubmit={handleSend} className="flex gap-2">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder={
+            playerName ? "Type a message..." : "Enter name to chat..."
+          }
+          className="flex-grow p-3 rounded-lg bg-gray-700/80 text-white placeholder-gray-500 border border-cyan-500/30 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300"
+          maxLength={100}
+          disabled={!playerName}
+        />
 
-                  {/* Message Text */}
-                  <p>{messageText}</p>
-                </div>
-
-                {/* Reactions Overlay (Floating Badge - stays visible if reactions exist) */}
-                {reactionsExist && (
-                  <div
-                    className={`absolute bottom-[-10px] ${
-                      isOwnMessage ? "left-[-10px]" : "right-[-10px]"
-                    } flex gap-1 bg-gray-800 border border-gray-700 rounded-full py-0.5 px-1 shadow-md`}
-                  >
-                    {acceptedEmojis.map((emoji) => {
-                      const count = getReactionCount(msg.reactions, emoji);
-                      const reacted = hasUserReacted(msg.reactions, emoji);
-
-                      if (count > 0) {
-                        return (
-                          <div
-                            key={emoji}
-                            className={`flex items-center text-xs font-semibold ${
-                              reacted ? "ring-2 ring-cyan-500 rounded-full" : ""
-                            }`}
-                          >
-                            <span className="text-sm">{emoji}</span>
-                            <span className="ml-0.5 text-white">{count}</span>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* 📌 Reaction Buttons (Only visible if isReactionMenuOpen is true) */}
-              {isReactionMenuOpen(msg.id) && (
-                <div className={`flex gap-1 mt-2 p-1 rounded-lg bg-gray-900 shadow-xl ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
-                  <p className="text-xs font-semibold text-gray-400 mr-1 self-center">
-                    React:
-                  </p>
-                  {acceptedEmojis.map((emoji) => (
-                    <button
-                      key={`react-${msg.id}-${emoji}`}
-                      onClick={() => handleReact(msg.id, emoji)}
-                      className={`text-sm p-1.5 rounded-full hover:bg-gray-700 transition`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-        <div ref={chatEndRef} />
-      </div>
-
-      {/* Input Form */}
-      <form onSubmit={handleSend} className="flex gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={
-            playerName ? "Send a message..." : "Enter name to chat..."
-          }
-          className="flex-grow p-2 rounded-lg bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-          maxLength={100}
-          disabled={!playerName}
-        />
-        <button
-          type="submit"
-          className="p-2 rounded-lg bg-cyan-600 text-white font-bold hover:bg-cyan-700 transition disabled:opacity-50 flex items-center justify-center text-xl"
-          disabled={!input.trim() || !playerName}
-        >
-          <MdSend />
-        </button>
-      </form>
-    </div>
-  );
+        <button
+          type="submit"
+          className="px-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold rounded-lg shadow-md hover:shadow-cyan-500/50 transition-all duration-300 transform hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
+          disabled={!input.trim() || !playerName}
+        >
+          <MdSend className="text-2xl" />
+        </button>
+      </form>
+    </div>
+  );
 };
 
 export default ChatWindow;

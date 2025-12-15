@@ -30,8 +30,6 @@ const GamePage = () => {
     sharedObstacles,
   } = useSocket(playerName);
 
-  // console.log("Leaderboard", leaderboard);
-
   const handleStartGame = () => {
     const sessionId = generateSessionId();
     setGameOverData(null);
@@ -45,138 +43,86 @@ const GamePage = () => {
       setGameOverData({ playerName, score, sessionId });
 
       axios
-        .post(`${API_SERVER_URL}/api/score/scores`, {
+        .post(`${API_SERVER_URL}/api/score`, {
           player_name: playerName,
           score: Math.floor(score),
           session_id: sessionId,
         })
-        .then((res) => {
-          console.log("Score Submitted:", res.data);
-        })
-        .catch((err) => {
-          console.error("Score Submission Failed:", err);
-          if (err.response) {
-            console.error("Error response:", err.response.data);
-          }
-        });
+        .then((res) => console.log("Score Submitted:", res.data))
+        .catch((err) => console.error("Score Submission Failed:", err));
     },
     [playerName]
   );
 
-  const handleNameChange = (e) => setPlayerName(e.target.value);
+  const handleRestart = () => {
+    setGameOverData(null);
+    setIsGameActive(true);
+  };
+
+  const gameContent = isGameActive ? (
+    <DinosaurGame
+      onGameOver={handleGameOver}
+      updatePlayerState={updatePlayerState}
+      ghostPlayers={ghostPlayers}
+      sharedObstacles={sharedObstacles}
+    />
+  ) : gameOverData ? (
+    <GameOverModal score={gameOverData.score} onRestart={handleRestart} />
+  ) : (
+    <StartGameModal
+      playerName={playerName}
+      onStart={handleStartGame}
+      onNameChange={(e) => setPlayerName(e.target.value)}
+      playerCount={playerCount}
+    />
+  );
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex p-8">
-      <div className="flex-1 flex flex-col items-center p-4">
-        <h1 className="text-4xl font-extrabold text-yellow-500 mb-6">
-          Dino Runner Multiplayer
-        </h1>
-        <p
-          className={`text-sm mb-4 ${
-            isConnected ? "text-green-400" : "text-red-400"
-          }`}
-        >
-          Status: {isConnected ? "Connected" : "Connecting..."} | Active
-          Runners: {playerCount}
-        </p>
+    <div className="min-h-screen bg-gray-900 text-white font-mono flex flex-col items-center p-4">
+      <h1 className="text-5xl font-extrabold mb-4 text-yellow-400 tracking-widest border-b-4 border-yellow-600 pb-2 shadow-lg">
+        Dino Runner Multiplayer
+      </h1>
 
-        {isGameActive ? (
-          <div className="flex flex-col items-center">
-            <DinosaurGame
-              updatePlayerState={updatePlayerState}
-              onGameOver={handleGameOver}
-              ghostPlayers={ghostPlayers}
-              sharedObstacles={sharedObstacles}
-            />
+      <div className="flex gap-6 max-w-7xl w-full h-[calc(100vh-120px)] mx-auto items-start">
+        <div className="w-[900px] flex-shrink-0 flex items-center justify-center p-4 bg-gray-800 rounded-lg shadow-2xl relative">
+          {gameContent}
+        </div>
 
-            <button
-              onClick={() => {
-                setIsGameActive(false);
-                setGameOverData(null);
-              }}
-              className="mt-4 px-6 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-all duration-200 text-2xl"
-            >
-              Quit Game
-            </button>
-          </div>
-        ) : (
-          <div className="w-[800px] h-[300px] bg-gray-800 flex flex-col items-center justify-center border-4 border-yellow-500">
-            {gameOverData ? (
-              <GameOverModal
-                score={gameOverData.score}
-                onRestart={handleStartGame}
-              />
-            ) : (
-              <StartGameModal
-                playerName={playerName}
-                onStart={handleStartGame}
-                onNameChange={handleNameChange}
-                playerCount={playerCount}
-              />
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="w-full md:w-96 flex flex-col bg-gray-800 border-t md:border-t-0 md:border-l border-gray-700 shadow-2xl rounded-lg mt-8 md:mt-0">
-        <div className="h-[450px] p-4 overflow-y-auto bg-black/30 backdrop-blur-xl rounded-t-lg">
-          {" "}
-          <div className="bg-gradient-to-r from-gray-700 to-gray-800 p-6 border-b border-cyan-400/50">
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <span className="text-4xl text-cyan-400">🏆</span>
-              <h3 className="text-3xl font-extrabold text-white tracking-wider">
-                Live Scores
-              </h3>
-            </div>
-            <p className="text-center text-gray-400 font-medium">
-              {playerCount} Players Online
+        <div className="w-96 flex-shrink-0 flex flex-col bg-gray-800 rounded-lg shadow-2xl overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-4 bg-gray-700/50 rounded-t-lg border-b border-gray-700">
+            <h3 className="text-2xl font-bold mb-3 text-cyan-400 text-center border-b border-cyan-400/50 pb-1">
+              Live Leaderboard
+            </h3>
+            <p className="text-sm text-white/70 mb-4 text-center">
+              Total Active Players:{" "}
+              <span className="text-green-400">{playerCount}</span>
             </p>
-          </div>
-          <div className="p-6">
-            <ol className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar">
-              <li className="flex justify-between text-xs font-semibold uppercase text-cyan-400 pb-2 border-b border-gray-700">
-                <span className="w-8 text-left">Rank</span>
-                <span className="flex-1 text-left">Player</span>
-                <span className="text-right mr-[20px]">Score</span>
-              </li>
 
+            <ol className="space-y-2">
               {leaderboard &&
               Array.isArray(leaderboard) &&
               leaderboard.length > 0 ? (
                 leaderboard.map((entry, index) => (
                   <li
                     key={entry._id || index}
-                    className={`
-                p-3 rounded-xl flex items-center justify-between
-                transition-colors duration-200
-                ${
-                  index === 0
-                    ? "bg-yellow-800/50 text-white shadow-xl"
-                    : index === 1
-                    ? "bg-gray-500/50 text-white"
-                    : index === 2
-                    ? "bg-orange-700/50 text-white"
-                    : "bg-white/5 text-white hover:bg-white/10"
-                }
-              `}
+                    className={`p-2 rounded flex justify-between items-center transition-all duration-300 ${
+                      index === 0
+                        ? "bg-yellow-600 text-gray-900 border-2 border-yellow-400"
+                        : index === 1
+                        ? "bg-gray-400 text-gray-900 border-2 border-gray-300"
+                        : index === 2
+                        ? "bg-yellow-800 text-white border-2 border-yellow-900"
+                        : "bg-gray-900 hover:bg-gray-700 border border-gray-600"
+                    }`}
                   >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <span
-                        className={`text-xl font-bold w-8 text-left ${
-                          index < 3 ? "text-yellow-300" : "text-gray-400"
-                        }`}
-                      >
-                        {index === 0
-                          ? "🥇"
-                          : index === 1
-                          ? "🥈"
-                          : index === 2
-                          ? "🥉"
-                          : `#${entry.rank}`}
+                    <div className="flex items-center">
+                      <span className="font-extrabold mr-2 w-6 text-center">
+                        #{index + 1}
                       </span>
-
                       <span
-                        className={`font-semibold truncate flex-auto text-left`}
+                        className={`truncate ${
+                          index < 3 ? "text-lg" : "text-base"
+                        }`}
                         title={entry.player_name}
                       >
                         {entry.player_name || "Unknown"}
@@ -185,8 +131,8 @@ const GamePage = () => {
 
                     <span
                       className={`font-extrabold text-lg ml-4 ${
-                        index < 3 ? "text-yellow-300" : "text-cyan-400"
-                      } mr-[20px]`}
+                        index < 3 ? "text-gray-900" : "text-cyan-400"
+                      } mr-[2px]`}
                     >
                       {entry.score}
                     </span>
@@ -206,15 +152,16 @@ const GamePage = () => {
               )}
             </ol>
           </div>
-        </div>
-        <div className="flex-grow p-4 border-t border-gray-700 overflow-hidden flex flex-col bg-gray-900 rounded-b-lg">
-          <ChatWindow
-            messages={chatMessages}
-            onSend={sendMessage}
-            onReact={sendReaction}
-            currentSocketId={socketId}
-            playerName={playerName}
-          />
+
+          <div className="flex-1 p-4 overflow-hidden flex flex-col bg-gray-900 rounded-b-lg">
+            <ChatWindow
+              messages={chatMessages}
+              onSend={sendMessage}
+              onReact={sendReaction}
+              currentSocketId={socketId}
+              playerName={playerName}
+            />
+          </div>
         </div>
       </div>
     </div>

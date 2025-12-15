@@ -23,9 +23,7 @@ const useSocket = (playerName) => {
       if (Array.isArray(response.data)) {
         setLeaderboard(response.data);
       } else {
-        console.warn(
-          "Leaderboard API returned non-array data. State set to []."
-        );
+        console.warn("Leaderboard API returned non-array data.");
         setLeaderboard([]);
       }
     } catch (error) {

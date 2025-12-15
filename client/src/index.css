@@ -7,7 +7,7 @@
 /* Set a dark, full-screen background for the application */
 body {
   /* Fallback color */
-  background-color: #1a1a2e;
+  background-color: black;
   
   /* --- Background Image Addition --- */
   background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="#252F43" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(#grid)" /></svg>');
@@ -16,7 +16,7 @@ body {
   background-attachment: fixed;
   /* --------------------------------- */
 
-  color: #e5e7eb; /* Light gray text */
+  color: white; /* Light gray text */
   font-family: 'Inter', sans-serif; /* Assuming a modern font */
 }
 
@@ -35,3 +35,4 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.5);
 }
+

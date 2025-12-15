@@ -3,7 +3,7 @@ export default {
   content: [
     "./index.html",
     // CRITICAL: Scans all your React files for utility classes
-    "./src/**/*.{js,ts,jsx,tsx}", 
+    "./src/**/*.{js,jsx,ts,tsx}", 
   ],
   theme: {
     extend: {},

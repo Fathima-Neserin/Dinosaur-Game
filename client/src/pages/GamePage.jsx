@@ -28,7 +28,7 @@ const GamePage = () => {
     sharedObstacles,
   } = useSocket(playerName);
 
-  console.log("Leaderboard", leaderboard);
+  // console.log("Leaderboard", leaderboard);
 
   const handleStartGame = () => {
     const sessionId = generateSessionId();

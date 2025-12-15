@@ -9,8 +9,21 @@ const ChatWindow = ({
   playerName,
 }) => {
   const [input, setInput] = useState("");
+  // 📌 NEW STATE: Tracks which message reaction menu is currently open/active
+  const [activeReactionId, setActiveReactionId] = useState(null); 
   const chatEndRef = useRef(null);
-  const acceptedEmojis = ["👍", "🔥", "😂", "🎉"];
+    
+  const acceptedEmojis = [
+    '👍', 
+    '👎', 
+    '😂', 
+    '🔥', 
+    '🎉', 
+    '❤️', 
+    '🤯', 
+    '😴', 
+    '💯', 
+  ];
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -26,6 +39,13 @@ const ChatWindow = ({
 
   const handleReact = (messageId, emoji) => {
     onReact(messageId, emoji);
+    // Optionally close the reaction panel after reacting:
+    setActiveReactionId(null); 
+  };
+
+  // 📌 NEW FUNCTION: Toggles the reaction menu when the message container is clicked
+  const handleMessageClick = (messageId) => {
+    setActiveReactionId(prevId => (prevId === messageId ? null : messageId));
   };
 
   const getReactionCount = (reactions, emoji) => {
@@ -35,6 +55,9 @@ const ChatWindow = ({
   const hasUserReacted = (reactions, emoji) => {
     return reactions[emoji] && reactions[emoji].includes(currentSocketId);
   };
+
+  // Check if the current message's reaction menu should be open
+  const isReactionMenuOpen = (messageId) => activeReactionId === messageId;
 
   return (
     <div className="flex flex-col h-full">
@@ -48,7 +71,7 @@ const ChatWindow = ({
           const isOwnMessage = msg.senderId === currentSocketId;
           const senderName = msg.playerName || "Ghost Runner";
           const messageText = msg.text || msg.message || msg.content || "";
-          const hasReactions =
+          const reactionsExist =
             msg.reactions &&
             acceptedEmojis.some(
               (emoji) => getReactionCount(msg.reactions, emoji) > 0
@@ -64,15 +87,17 @@ const ChatWindow = ({
               {/* Message Bubble Container - Holds message and reactions */}
               <div className="max-w-[80%] relative">
                 
-                {/* MESSAGE BUBBLE: This div holds ALL styling and content */}
+                {/* MESSAGE BUBBLE: Clickable area to toggle reactions */}
                 <div
-                  className={`relative p-3 text-sm leading-relaxed break-words shadow-lg rounded-2xl ${
+                  className={`relative p-3 text-sm leading-relaxed break-words shadow-lg rounded-2xl cursor-pointer ${
                     isOwnMessage
-                      ? "bg-cyan-600 text-white rounded-br-md"
-                      : "bg-white text-gray-900 rounded-bl-md"
+                      ? "bg-cyan-600 text-white rounded-br-md" 
+                      : "bg-white text-gray-900 rounded-bl-md" 
                   }`}
+                  // 📌 ON CLICK: Toggle reaction menu
+                  onClick={() => handleMessageClick(msg.id)}
                 >
-                  {/* Bubble Tail (Optional, but included for complete look) */}
+                  {/* Bubble Tail (Visual flair) */}
                   <span
                     className={`absolute bottom-2 w-3 h-3 rotate-45 ${
                       isOwnMessage
@@ -84,7 +109,7 @@ const ChatWindow = ({
                   {/* Sender Name (CAPITALS, Bold) */}
                   <p
                     className={`text-xs font-extrabold mb-1 uppercase ${
-                      isOwnMessage ? "text-white" : "text-gray-800"
+                      isOwnMessage ? "text-white" : "text-purple-600" 
                     }`}
                   >
                     {senderName}
@@ -94,8 +119,8 @@ const ChatWindow = ({
                   <p>{messageText}</p>
                 </div>
 
-                {/* Reactions Overlay (Floating Badge) */}
-                {hasReactions && (
+                {/* Reactions Overlay (Floating Badge - stays visible if reactions exist) */}
+                {reactionsExist && (
                   <div
                     className={`absolute bottom-[-10px] ${
                       isOwnMessage ? "left-[-10px]" : "right-[-10px]"
@@ -124,17 +149,17 @@ const ChatWindow = ({
                 )}
               </div>
 
-              {/* Reaction Buttons (Manual trigger visible for self if no reactions) */}
-              {isOwnMessage && !hasReactions && (
-                <div className="flex gap-1 mt-2">
-                  <p className="text-xs font-semibold text-gray-400 mr-1">
+              {/* 📌 Reaction Buttons (Only visible if isReactionMenuOpen is true) */}
+              {isReactionMenuOpen(msg.id) && (
+                <div className={`flex gap-1 mt-2 p-1 rounded-lg bg-gray-900 shadow-xl ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+                  <p className="text-xs font-semibold text-gray-400 mr-1 self-center">
                     React:
                   </p>
                   {acceptedEmojis.map((emoji) => (
                     <button
                       key={`react-${msg.id}-${emoji}`}
                       onClick={() => handleReact(msg.id, emoji)}
-                      className={`text-sm p-1 rounded-full bg-gray-700 hover:bg-gray-600 transition`}
+                      className={`text-sm p-1.5 rounded-full hover:bg-gray-700 transition`}
                     >
                       {emoji}
                     </button>

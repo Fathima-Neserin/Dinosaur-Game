@@ -126,7 +126,7 @@ const useSocket = (playerName) => {
     [playerName]
   );
 
-  const sendReaction = useCallback(({ messageId, emoji }) => {
+  const sendReaction = useCallback((messageId, emoji) => {
     if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit("chat:react", { messageId, emoji });
     }
